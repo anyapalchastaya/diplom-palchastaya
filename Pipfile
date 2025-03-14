@@ -1,0 +1,27 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+pytest = "*"
+pytest-django = "*"
+pytest-cov = "*"
+mixer = "*"
+
+[packages]
+django = "==3.1.1"
+djangorestframework = "*"
+djangorestframework-simplejwt = "*"
+django-environ = "*"
+pillow = "*"
+drf-yasg = "*"
+uritemplate = "*"
+django-cors-headers = "*"
+pyyaml = "*"
+redis = "*"
+psycopg2-binary = "*"
+python-dotenv = "*"
+
+[requires]
+python_version = "3.8"
