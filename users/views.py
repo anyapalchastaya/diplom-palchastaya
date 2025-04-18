@@ -73,3 +73,23 @@ class Reset(APIView):
         user.save()
 
         return Response()
+
+
+class UpdateEmail(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def put(self, request):
+        user = request.user
+        new_email = request.data.get('email')
+
+        if not new_email:
+            return Response({'error': 'Еmail обязателен'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Проверяем, не занят ли email другим пользователем
+        if User.objects.filter(email=new_email).exclude(id=user.id).exists():
+            return Response({'error': 'Такая почта уже занята'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.email = new_email
+        user.save()
+
+        return Response({'email': new_email}, status=status.HTTP_200_OK)

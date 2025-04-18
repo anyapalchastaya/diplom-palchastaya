@@ -118,6 +118,7 @@ class Notification(models.Model):
         User, on_delete=models.CASCADE, related_name='notifications') # ссылка на юзера
     verb = models.CharField(max_length=255, blank=False, null=False)
     unread = models.BooleanField(default=True, blank=False, db_index=True)
+    data = models.JSONField(blank=True, null=True)
 
     created_at = models.DateTimeField(default=timezone.now)
 
@@ -161,4 +162,5 @@ class CardMovement(models.Model):
     timestamp = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
-        return f'{self.moved_by.full_name} moved {self.item.title} from {self.from_list.title} to {self.to_list.title} at {self.timestamp}'
+        return f'{self.moved_by.full_name} передвинул {self.item.title} в {self.to_list.title} в {self.timestamp}'
+    #from {self.from_list.title}

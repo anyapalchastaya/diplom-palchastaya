@@ -3,10 +3,10 @@ import pytest
 from mixer.backend.django import mixer
 pytestmark = pytest.mark.django_db
 
-
+#mixer - это библиотека для генерации тестовых данных в Django
 class TestBoard:
     def test_model(self):
-        board = mixer.blend('boards.Board')
+        board = mixer.blend('boards.Board') #  создает доску
         assert board.pk == 1, 'Should create a Board instance'
 
     def test_str(self):
@@ -74,4 +74,4 @@ class TestComment:
 class TestAttachment:
     def test_model(self):
         attachment = mixer.blend('boards.Attachment')
-        assert attachment.pk == 1, 'Should create a Attachment instance'
+        assert attachment.pk == 1, 'Should create a Attachment instance' #объент создан в базу данных

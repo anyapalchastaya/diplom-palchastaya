@@ -46,7 +46,7 @@ class BoardList(generics.ListCreateAPIView):
         sort = self.request.GET.get('sort', None)
         search = self.request.GET.get('q', None)
 
-        if sort == "recent":
+        if  False and sort == "recent":  # TODO add redis
             redis_key = f'{self.request.user.username}:RecentlyViewedBoards'
             board_ids = r.zrange(redis_key, 0, 3, desc=True)
 
@@ -93,14 +93,17 @@ class BoardDetail(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self, *args, **kwargs):
         project_ids = ProjectMembership.objects.filter(
             member=self.request.user).values_list('project__id', flat=True)
-        return Board.objects.filter(Q(owner_id=self.request.user.id, owner_model=ContentType.objects.get(model='user')) |
-                                    Q(owner_id__in=project_ids, owner_model=ContentType.objects.get(model='project')))
+        return Board.objects.filter(
+            Q(owner_id=self.request.user.id, owner_model=ContentType.objects.get(model='user'))
+            | Q(owner_id__in=project_ids, owner_model=ContentType.objects.get(model='project'))
+        )
+
 
     def get_object(self):
         board_id = self.kwargs.get('pk')
         redis_key = f'{self.request.user.username}:RecentlyViewedBoards'
         cur_time_int = int(timezone.now().strftime("%Y%m%d%H%M%S"))
-        r.zadd(redis_key, {board_id: cur_time_int})
+        # r.zadd(redis_key, {board_id: cur_time_int})
         return super().get_object()
 
     def perform_update(self, serializer):
@@ -119,7 +122,6 @@ class BoardDetail(generics.RetrieveUpdateDestroyAPIView):
 
 class BoardStar(APIView):
     permission_classes = [CanViewBoard]
-
     def get_board(self, pk):
         board = get_object_or_404(Board, pk=pk)
         self.check_object_permissions(self.request, board)
@@ -255,7 +257,10 @@ class ItemDetail(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [CanViewBoard]
 
     def get_user(self, username, board):
-        user = get_object_or_404(User, username=username)
+        if '@' in username:
+            user = get_object_or_404(User, email=username)
+        else:
+            user = get_object_or_404(User, username=username)
         # Can this user view the board though?
         if user.can_view_board(board):
             return user

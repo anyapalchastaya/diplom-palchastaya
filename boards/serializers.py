@@ -8,6 +8,7 @@ from rest_framework import serializers
 from rest_framework.fields import Field
 from users.models import User
 from users.serializers import UserSerializer
+from django.utils import timezone
 
 from .models import Attachment, Board, Comment, Item, Label, List, Notification
 
@@ -46,6 +47,11 @@ class ItemSerializer(serializers.ModelSerializer):
     def get_assigned_to(self, obj):
         queryset = obj.assigned_to.all()
         return UserSerializer(queryset, many=True).data
+
+    def validate_due_date(self, value):
+        if value and value < timezone.now():
+            raise serializers.ValidationError("Due date cannot be in the past")
+        return value
 
 
 class ListSerializer(serializers.ModelSerializer):
@@ -126,7 +132,7 @@ class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
         fields = ['id', 'actor', 'verb', 'target_model',
-                  'target', 'action_object', 'unread', 'created_at']
+                  'target', 'action_object', 'unread', 'created_at', 'data']
 
     def get_target_model(self, obj):
         object_name = obj.target._meta.object_name

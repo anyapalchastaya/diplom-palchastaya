@@ -10,7 +10,7 @@ from ..models import Board, Item, List, Comment, Label
 pytestmark = pytest.mark.django_db
 
 
-class TestBoardListView:
+class TestBoardListView: #тест проверяет, что пользователь может получить список своих досок
     def test_get(self):
         user = mixer.blend(User)
         client = APIClient()
@@ -18,7 +18,7 @@ class TestBoardListView:
         project = mixer.blend(Project, owner=user)
         board1 = mixer.blend(Board, owner=project)
         board2 = mixer.blend(Board, owner=user)
-        response = client.get('/boards/')
+        response = client.get('/boards/') #ответ на запрос
         assert response.status_code == 200
         assert board1.owner.title == project.title
         assert board2.owner.username == user.username
@@ -43,7 +43,7 @@ class TestBoardListView:
         assert response.status_code == 201, "Should be created(Project)"
 
 
-class TestBoardDetailView:
+class TestBoardDetailView: #тест проверяет, что пользователь может получить доску
     @pytest.fixture
     def make_board(self):
         user = mixer.blend(User)
@@ -573,6 +573,7 @@ class TestCommentListView:
                                    "body": "personal comment attached"
                                })
         assert response.status_code == 201 and response.data['body'] == "personal comment attached"
+
         response = client.post('/boards/comments/',
                                {
                                    "item": 2,
@@ -580,6 +581,8 @@ class TestCommentListView:
                                })
         assert response.status_code == 201 and response.data[
             'body'] == "comment attached to board item"
+
+
         client.force_authenticate(user_member)
         response = client.post('/boards/comments/',
                                {

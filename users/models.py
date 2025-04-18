@@ -52,7 +52,6 @@ class User(AbstractUser):
     last_name = models.CharField(max_length=255, blank=False, null=False)
     profile_pic = models.ImageField(blank=True, upload_to='profile_pics')
     reset_token = models.IntegerField(null=True, default=None)
-    resdownet_token = models.IntegerField(null=True, default=None)
 
     boards = GenericRelation(
         'boards.Board',
@@ -77,7 +76,11 @@ class User(AbstractUser):
                     member=self, project__id=board.owner_id)
             except ProjectMembership.DoesNotExist:
                 return False
-        else:
-            if board.owner_id != self.id:
-                return False
+        # else:
+        #     if board.owner_id != self.id:
+        #         try:
+        #             pmem = ProjectMembership.objects.get(
+        #                 member=self, project__id=board.project_id)
+        #         except ProjectMembership.DoesNotExist:
+        #             return False
         return True

@@ -1,14 +1,23 @@
 from rest_framework import serializers
+
+from ytasks import settings
 from .models import User
 
 class UserSerializer(serializers.ModelSerializer):
+    profile_pic = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = ('username', 'email', 'first_name', 'last_name', 'full_name', 'profile_pic', 'password')
         read_only_fields = ('full_name',)
-        extra_kwargs = {'password': {'write_only': True}, 
+        extra_kwargs = {'password': {'write_only': True},
                         'first_name': {'write_only': True},
                         'last_name': {'write_only': True}}
+
+    def get_profile_pic(self, obj):
+        if obj.profile_pic:
+            return "http://localhost:8000" + settings.MEDIA_URL + str(obj.profile_pic)
+        return None
 
 
     def create(self, validated_data):

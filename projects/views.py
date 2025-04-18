@@ -23,8 +23,11 @@ from users.models import User
 from ytasks.settings import EMAIL_BACKEND
 
 
-class ProjectList(mixins.ListModelMixin, mixins.CreateModelMixin,
-                  generics.GenericAPIView):
+class ProjectList(
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    generics.GenericAPIView
+):
 
     def get_serializer_class(self):
         if self.request.method == 'GET':
@@ -36,10 +39,12 @@ class ProjectList(mixins.ListModelMixin, mixins.CreateModelMixin,
         # Sort by access_level so projects where you're admin at top
         project_ids = ProjectMembership.objects.filter(
             member=self.request.user).order_by('-access_level').values_list('project__id', flat=True)
-
-        preserved = Case(*[When(pk=pk, then=pos)
-                           for pos, pk in enumerate(project_ids)])
-        return Project.objects.filter(pk__in=project_ids).order_by(preserved)
+        projects = None
+        if project_ids:
+            preserved = Case(*[When(pk=pk, then=pos)
+                               for pos, pk in enumerate(project_ids)])
+            projects  = Project.objects.filter(pk__in=project_ids).order_by(preserved)
+        return projects if project_ids else Project.objects.none()
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
@@ -148,30 +153,47 @@ class SendProjectInvite(APIView):
     def post(self, request, pk):
         project = self.get_object(pk)
         users = request.data.get('users', None)
-
+        print(users)
         if users is None:
             return Response({'error': 'No users provided'}, status=status.HTTP_400_BAD_REQUEST)
         for username in users:
             try:
-                user = User.objects.get(username=username)
+                if "@" in username:
+                    user = User.objects.get(email=username)
+                else:
+                    user = User.objects.get(username=username)
                 # Can't invite a member
                 if ProjectMembership.objects.filter(project=project, member=user).exists() or project.owner == user:
+                    print("True")
                     continue
+                print(user)
+                # TODO ADD REDIS
+                user_id = user.id
+                if user_id < 10:
+                    user_id = f"0{user_id}"
+                token = f"{user_id}{project.id}"
+                # token = str(random.randrange(1, 1000000))
+                # redis_key = f'ProjectInvitation:{token}'
+                # r.hmset(redis_key, {"user": user.id, "project": project.id})
 
-                token = str(random.randrange(1, 1000000))
-                redis_key = f'ProjectInvitation:{token}'
-                r.hmset(redis_key, {"user": user.id, "project": project.id})
+                # Generate token for join link
+                join_link = f"/join-project/{token}"
 
-                # if from_email=None, uses DEFAULT_FROM_EMAIL from settings.py
+                # Send email
                 Email.Builder().setEmail(user.email).setTitle(
                     f'{request.user.full_name} Пригласил вас в {project.title}'
                 ).addDescriptionLine(
-                    f'Перейдите по ссылке чтобы принять: http://localhost:3000/join-project/{token}'
+                    f'Перейдите по ссылке чтобы принять: http://localhost:3000{join_link}'
                 ).build().send()
 
                 # Notification
                 Notification.objects.create(
-                    actor=request.user, recipient=user, verb='invited you to', target=project)
+                    actor=request.user, 
+                    recipient=user, 
+                    verb='invited you to', 
+                    target=project,
+                    data={'join_link': join_link}
+                )
             except User.DoesNotExist:
                 continue
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -179,29 +201,38 @@ class SendProjectInvite(APIView):
 
 class AcceptProjectInvite(APIView):
     def post(self, request, token, format=None):
-        redis_key = f'ProjectInvitation:{token}'
-        invitation_exists = r.exists(redis_key)
-        if invitation_exists == False:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+        use_redis = False
+        if use_redis:
+            redis_key = f'ProjectInvitation:{token}'
+            invitation_exists = r.exists(redis_key)
+            if invitation_exists == False:
+                return Response(status=status.HTTP_400_BAD_REQUEST)
 
-        # Invitation is valid
-        invitation_details = r.hgetall(redis_key)
-        user_id = invitation_details["user"]
-        project_id = invitation_details["project"]
+            # Invitation is valid
+            invitation_details = r.hgetall(redis_key)
+            user_id = invitation_details["user"]
+            project_id = invitation_details["project"]
+        else:
+            user_id = int(token[0:2])
+            project_id = token[2:]
         try:
             user = User.objects.get(pk=user_id)
             project = Project.objects.get(pk=project_id)
         except(User.DoesNotExist, Project.DoesNotExist):
             user = None
 
+        print(user)
+        print(project)
+        print(ProjectMembership.objects.filter(project=project, member=user).exists())
         if user is not None and ProjectMembership.objects.filter(project=project, member=user).exists() == False:
             ProjectMembership.objects.create(project=project, member=user)
-            r.delete(redis_key)
+            # r.delete(redis_key)
 
             # Notification
             Notification.objects.filter(
                 verb='invited you to', recipient=user,
-                target_model=ContentType.objects.get(model='project'), target_id=project.id).delete()
+                target_model=ContentType.objects.get(model='project'), target_id=project.id
+            ).delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
         else:
             return Response(status=status.HTTP_400_BAD_REQUEST)
